@@ -1,3 +1,0 @@
-noinst_LIBRARIES=libpicture.a
-libpicture_a_SOURCES=minilzo.c pic_chunk_compre_and_decompre.c pic_file_compre_and_decompre.c
-

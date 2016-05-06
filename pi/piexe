@@ -1,8 +1,0 @@
-#!/bin/sh
-make clean
-DIR=.
-${DIR}/configure
-make
-make install
-sh ${DIR}/rebuild
-
