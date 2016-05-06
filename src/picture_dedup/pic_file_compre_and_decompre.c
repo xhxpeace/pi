@@ -59,13 +59,11 @@ int read_jpeg_file(FILE *infile,struct chunk *c)
     return 1;
 }
 //写jpg图片数据
-int write_jpeg_file(FILE *outfile,unsigned char *data,int quality,int image_width,int image_height)
+int write_jpeg_file(FILE *outfile,unsigned char **data,int quality,int image_width,int image_height)
 {
 	struct jpeg_compress_struct cinfo;
 	struct jpeg_error_mgr jerr;
 	int i=0;
-	unsigned char *offset=data;
-	int offsetNum=image_width*3;
 
     cinfo.err = jpeg_std_error(&jerr);
     jpeg_create_compress(&cinfo);
@@ -83,9 +81,8 @@ int write_jpeg_file(FILE *outfile,unsigned char *data,int quality,int image_widt
 	
   	while (cinfo.next_scanline < cinfo.image_height) 
   	{
-  		(void) jpeg_write_scanlines(&cinfo, &offset, 1);
+  		(void) jpeg_write_scanlines(&cinfo, &data[i], 1);
 		i++;
-		offset+=offsetNum;
   	}
   	
   	jpeg_finish_compress(&cinfo);
