@@ -1,0 +1,5 @@
+#!/bin/sh
+DIR=.
+make
+make install
+sh ${DIR}/rebuild
