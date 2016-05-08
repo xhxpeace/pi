@@ -91,14 +91,18 @@ int write_jpeg_file(FILE *outfile,unsigned char **data,int quality,int image_wid
 	jpeg_destroy_compress(&cinfo);
 	return 1;
 }
-int write_to_mem(unsigned char **outbuf,unsigned char *data,int quality,int width,int height){
+int write_to_mem(unsigned char *outbuf,unsigned char *data,int quality,int width,int height){
+	printf("ok\n");
 	struct jpeg_compress_struct cinfo;
 	struct jpeg_error_mgr jerr;
 	unsigned long len=0;//int len will lead to error
 	unsigned char *buf=NULL;
-	unsigned char *offset=data;
+	
 	int offsetNum=width*3;
-    cinfo.err = jpeg_std_error(&jerr);
+	unsigned char *offset=data;
+	unsigned char *inbuf=(unsigned char *)malloc(offsetNum);
+
+     cinfo.err = jpeg_std_error(&jerr);
    	jpeg_create_compress(&cinfo);
    	jpeg_mem_dest(&cinfo,&buf,&len);
 	cinfo.image_width = width; 	
@@ -108,19 +112,19 @@ int write_to_mem(unsigned char **outbuf,unsigned char *data,int quality,int widt
   	jpeg_set_defaults(&cinfo);
   	jpeg_set_quality(&cinfo, quality, TRUE);
   	jpeg_start_compress(&cinfo, TRUE);
-  	int i=0;
 	while (cinfo.next_scanline < cinfo.image_height) 
 	{
-	  	jpeg_write_scanlines(&cinfo, &offset, 1);
-		i++;
+		memcpy(inbuf,offset,offsetNum);
+	  	jpeg_write_scanlines(&cinfo, &inbuf, 1);
 		offset+=offsetNum;
 	}
 	jpeg_finish_compress(&cinfo);
 	//*outbuf=(unsigned char *)malloc(len*sizeof(unsigned char));
-	*outbuf=buf;
+	outbuf=buf;
 	//memcpy(*outbuf,buf,len);	
 	jpeg_destroy_compress(&cinfo);
-
+	free(inbuf);
+	printf("ok1\n");
 	return (int)len;
 }
 
@@ -171,8 +175,10 @@ int chunk_judge(struct chunk *c)
 unsigned char ** malloc_2_array(int r,int c){
 	int i;
 	unsigned char **buf=(unsigned char **)malloc(r*sizeof(unsigned char *));
-	for(i=0;i<r;i++)
+	for(i=0;i<r;i++){
 		buf[i]=(unsigned char *)malloc(c*sizeof(unsigned char));
+		memset(buf[i],0,c);
+	}
 	return buf;
 }
 //free two-dimensional array
@@ -189,7 +195,7 @@ static void read_bmp(unsigned char **buf,struct jpeg_decompress_struct *cinfo) {
 	TIMER_DECLARE(1);
 	TIMER_BEGIN(1);
 	int i=0;
-	for(i=0;i<cinfo->output_height;i++){
+	for(;i<cinfo->output_height;i++){
 		jpeg_read_scanlines(cinfo,&buf[i],1);
 	}
 	TIMER_END(1,jcr.decompre_time);
@@ -222,6 +228,7 @@ void pic_chunk(struct chunk *c,struct jpeg_decompress_struct *cinfo){
 	TIMER_BEGIN(1);
 	read_bmp(buf,cinfo);
 	TIMER_END(1, jcr.read_time);
+
 	
 	if(height<PIC_CHUNK_ROW||width<PIC_CHUNK_ROW){
 		TIMER_BEGIN(1);

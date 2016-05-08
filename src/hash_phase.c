@@ -87,12 +87,11 @@ void accuracy_control(unsigned char *avg){
 void set_inbuf(unsigned char **inbuf,struct chunk *c){
 	int i,j,k;
 	int column3=c->column*3;
+	unsigned char *pdata=c->data;
 	k=0;
 	for(i=0;i<c->row;i++){
-		for(j=0;j<column3;j++){
-			inbuf[i][j]=c->data[k+j];
-		}
-		k+=column3;
+		memcpy(inbuf[i],pdata,column3);
+		pdata += column3;
 	}
 }	
 
@@ -141,7 +140,7 @@ static void* sha1_thread(void* arg) {
 			unsigned char *outbuf=NULL;
 			TIMER_DECLARE(1);
 			TIMER_BEGIN(1);
-			int len=write_to_mem(&outbuf,inbuf,quality,c->column,c->row);
+			int len=write_to_mem(outbuf,inbuf,quality,c->column,c->row);
 			TIMER_END(1,jcr.compre_time);
 			if(c->row==PIC_CHUNK_ROW&&c->column==PIC_CHUNK_ROW){
 				unsigned char *gray=(unsigned char *)malloc(c->row*c->column*sizeof(unsigned char));

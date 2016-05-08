@@ -305,7 +305,6 @@ void write_restore_data() {
 				TIMER_END(1,jcr.decompre_time);
 				//块解压结束
 				//压缩为jpg文件
-				TIMER_DECLARE(1);
 				TIMER_BEGIN(1);
 				if(!write_jpeg_file(fp,picbuf,99,column,row)){
 					printf("write jpeg file error!\n");
