@@ -102,11 +102,14 @@ void do_backup(char *path) {
 
 	printf("read_time : %.3fs, %.2fMB/s\n", jcr.read_time / 1000000,
 			jcr.data_size * 1000000 / jcr.read_time / 1024 / 1024);
+	printf("decompre_time : %.3fs, %.2fMB/s\n", jcr.decompre_time/ 1000000,
+			jcr.data_size * 1000000 / jcr.decompre_time/ 1024 / 1024);
 	printf("chunk_time : %.3fs, %.2fMB/s\n", jcr.chunk_time / 1000000,
 			jcr.data_size * 1000000 / jcr.chunk_time / 1024 / 1024);
 	printf("hash_time : %.3fs, %.2fMB/s\n", jcr.hash_time / 1000000,
 			jcr.data_size * 1000000 / jcr.hash_time / 1024 / 1024);
-
+	printf("compre_time : %.3fs, %.2fMB/s\n", jcr.compre_time/ 1000000,
+			jcr.data_size * 1000000 / jcr.compre_time/ 1024 / 1024);
 	printf("dedup_time : %.3fs, %.2fMB/s\n",
 			jcr.dedup_time / 1000000,
 			jcr.data_size * 1000000 / jcr.dedup_time / 1024 / 1024);

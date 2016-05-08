@@ -223,6 +223,8 @@ void write_restore_data() {
 				//printf("pic r=%d c=%d\n",row,column );
 
 				//解压块
+				TIMER_DECLARE(1);
+				TIMER_BEGIN(1);
 				while(!CHECK_CHUNK(c, CHUNK_FILE_END)&&pr<row){
 					//处理完整行				
 					int temp;
@@ -300,12 +302,16 @@ void write_restore_data() {
 					}
 
 				}
+				TIMER_END(1,jcr.decompre_time);
 				//块解压结束
 				//压缩为jpg文件
+				TIMER_DECLARE(1);
+				TIMER_BEGIN(1);
 				if(!write_jpeg_file(fp,picbuf,99,column,row)){
 					printf("write jpeg file error!\n");
 					exit(1);
 				}
+				TIMER_END(1,jcr.compre_time);
 				
 				fclose(fp);
 				fp = NULL;
@@ -406,6 +412,10 @@ void do_restore(int revision, char *path) {
 			jcr.write_chunk_time / 1000000,
 			jcr.data_size * 1000000 / jcr.write_chunk_time / 1024 / 1024);
 
+	printf("compre_time : %.3fs, %.2fMB/s\n", jcr.compre_time/ 1000000,
+			jcr.data_size * 1000000 / jcr.compre_time/ 1024 / 1024);
+	printf("decompre_time : %.3fs, %.2fMB/s\n", jcr.decompre_time/ 1000000,
+			jcr.data_size * 1000000 / jcr.decompre_time/ 1024 / 1024);
 	char logfile[] = "restore.log";
 	FILE *fp = fopen(logfile, "a");
 

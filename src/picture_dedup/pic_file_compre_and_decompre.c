@@ -53,7 +53,9 @@ int read_jpeg_file(FILE *infile,struct chunk *c)
 	c->row=cinfo.output_height;
 	c->column=cinfo.output_width;
 	sync_queue_push(read_queue, c);
+
 	pic_chunk(c,&cinfo);
+	
 	jpeg_finish_decompress(&cinfo);
 	jpeg_destroy_decompress(&cinfo);
     return 1;
@@ -96,7 +98,7 @@ int write_to_mem(unsigned char **outbuf,unsigned char *data,int quality,int widt
 	unsigned char *buf=NULL;
 	unsigned char *offset=data;
 	int offsetNum=width*3;
-      cinfo.err = jpeg_std_error(&jerr);
+    cinfo.err = jpeg_std_error(&jerr);
    	jpeg_create_compress(&cinfo);
    	jpeg_mem_dest(&cinfo,&buf,&len);
 	cinfo.image_width = width; 	
@@ -184,10 +186,13 @@ void free_2_array(unsigned char **buf,int r){
 
 //read bmp to buf
 static void read_bmp(unsigned char **buf,struct jpeg_decompress_struct *cinfo) {
+	TIMER_DECLARE(1);
+	TIMER_BEGIN(1);
 	int i=0;
 	for(i=0;i<cinfo->output_height;i++){
 		jpeg_read_scanlines(cinfo,&buf[i],1);
 	}
+	TIMER_END(1,jcr.decompre_time);
 }
 
 void copyto(unsigned char *dst,unsigned char **res,int h_size,int w_size,int h_offset,int w_offset){

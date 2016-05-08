@@ -47,6 +47,9 @@ struct {
 	double filter_time;
 	double write_time;
 
+	double compre_time;
+	double decompre_time;
+
 	double read_recipe_time;
 	double read_chunk_time;
 	double write_chunk_time;

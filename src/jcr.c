@@ -48,6 +48,9 @@ void init_jcr(char *path) {
 	jcr.filter_time = 0;
 	jcr.write_time = 0;
 
+	jcr.compre_time = 0;
+	jcr.decompre_time = 0;
+
 	/*
 	 * the time consuming of three restore phase
 	 */

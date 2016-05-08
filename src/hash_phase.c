@@ -139,8 +139,10 @@ static void* sha1_thread(void* arg) {
 
 			//compress bit map chunk
 			unsigned char *outbuf=NULL;
+			TIMER_DECLARE(1);
+			TIMER_BEGIN(1);
 			int len=write_to_mem(&outbuf,inbuf,quality,c->column,c->row);
-
+			TIMER_END(1,jcr.compre_time);
 			if(c->row==PIC_CHUNK_ROW&&c->column==PIC_CHUNK_ROW){
 				unsigned char *gray=(unsigned char *)malloc(c->row*c->column*sizeof(unsigned char));
 				get_gray(gray,c);				
