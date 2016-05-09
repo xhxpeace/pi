@@ -5,7 +5,15 @@
 static pthread_t hash_t;
 static int64_t chunk_num;
 
-
+static void echoarray(unsigned char **arr,int r,int c){
+	int i,j;
+	for(i=0;i<r;i++){
+		for(j=0;j<c;j++){
+			printf("%d ",arr[i][j] );
+		}
+		printf("\n");
+	}
+}
 void get_gray(unsigned char *gray,struct chunk *c){
 	int i;
 	int j=0;
@@ -130,17 +138,17 @@ static void* sha1_thread(void* arg) {
 
 		if(PIC_CHUNK_YES_OR_NO&&c->row!=0){	
 			//can't use inbuf=malloc_2_array();
-			unsigned char **inbuf=(unsigned char **)malloc(c->row*sizeof(unsigned char *));
+			/*unsigned char **inbuf=(unsigned char **)malloc(c->row*sizeof(unsigned char *));
 			int i;
 			for(i=0;i<c->row;i++)
 				inbuf[i]=(unsigned char *)malloc(c->column*3*sizeof(unsigned char));
-			set_inbuf(inbuf,c);
+			set_inbuf(inbuf,c);*/
 
 			//compress bit map chunk
 			unsigned char *outbuf=NULL;
 			TIMER_DECLARE(1);
 			TIMER_BEGIN(1);
-			int len=write_to_mem(outbuf,inbuf,quality,c->column,c->row);
+			int len=write_to_mem(&outbuf,c->data,quality,c->column,c->row);
 			TIMER_END(1,jcr.compre_time);
 			if(c->row==PIC_CHUNK_ROW&&c->column==PIC_CHUNK_ROW){
 				unsigned char *gray=(unsigned char *)malloc(c->row*c->column*sizeof(unsigned char));
@@ -149,7 +157,6 @@ static void* sha1_thread(void* arg) {
 				accuracy_control(avg);
 				free(gray);
 			}
-
 			//update c->data
 			int m=609;//int m=offset_of_mark0xffda(outbuf,len);m is always 609
 			int rlen=len-m;
@@ -157,18 +164,17 @@ static void* sha1_thread(void* arg) {
 			free(c->data);
 			c->data=NULL;
 			c->data=(unsigned char *)malloc((rlen+4)*sizeof(unsigned char));	
-			for(m=0;m<rlen;m++)
-				c->data[m]=outbuf[len+m];
-			c->data[m]=(unsigned char)c->row;
-			c->data[m+1]=(unsigned char)c->column;
-			c->data[m+2]=(unsigned char)quality;
-			c->data[m+3]='\0';
-			c->size=rlen+4;
+			memcpy(c->data,outbuf+len,rlen);
+			c->data[rlen]=(unsigned char)c->row;
+			c->data[rlen+1]=(unsigned char)c->column;
 
+			c->data[rlen+2]=(unsigned char)quality;
+			c->data[rlen+3]='\0';
+			c->size=rlen+4;
 			free(outbuf);
-			free_2_array(inbuf,c->row);						
-		}
-		
+			/*free_2_array(inbuf,c->row);	*/
+
+		}		
 		TIMER_DECLARE(1);
 		TIMER_BEGIN(1);
 		SHA_CTX ctx;
@@ -187,8 +193,7 @@ static void* sha1_thread(void* arg) {
 
 		sync_queue_push(hash_queue, c);
 		free(avg);
-	}
-
+	}		
 	return NULL;
 }
 

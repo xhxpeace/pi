@@ -50,8 +50,9 @@ static void read_file(sds path) {
 
 	if(!is_small_file(len)&&PIC_CHUNK_YES_OR_NO&&file_judge(filename)){
 		int quality=read_quality(fp);
-
+		/*printf("read_read_qua= %d \n",quality );*/
 		quality=set_quality(quality);
+		/*printf("read_set_qua= %d \n",quality );*/
 
 		c->data[c->size-2]=(unsigned char)quality;
 		c->data[c->size-1]='\0';//put quality of jpg to string of filename for chunk compress

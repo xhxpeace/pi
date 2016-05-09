@@ -91,8 +91,7 @@ int write_jpeg_file(FILE *outfile,unsigned char **data,int quality,int image_wid
 	jpeg_destroy_compress(&cinfo);
 	return 1;
 }
-int write_to_mem(unsigned char *outbuf,unsigned char *data,int quality,int width,int height){
-	printf("ok\n");
+int write_to_mem(unsigned char **outbuf,unsigned char *data,int quality,int width,int height){
 	struct jpeg_compress_struct cinfo;
 	struct jpeg_error_mgr jerr;
 	unsigned long len=0;//int len will lead to error
@@ -115,16 +114,16 @@ int write_to_mem(unsigned char *outbuf,unsigned char *data,int quality,int width
 	while (cinfo.next_scanline < cinfo.image_height) 
 	{
 		memcpy(inbuf,offset,offsetNum);
+		//echodata(inbuf,offsetNum);
 	  	jpeg_write_scanlines(&cinfo, &inbuf, 1);
 		offset+=offsetNum;
 	}
 	jpeg_finish_compress(&cinfo);
 	//*outbuf=(unsigned char *)malloc(len*sizeof(unsigned char));
-	outbuf=buf;
+	*outbuf=buf;
 	//memcpy(*outbuf,buf,len);	
 	jpeg_destroy_compress(&cinfo);
 	free(inbuf);
-	printf("ok1\n");
 	return (int)len;
 }
 
@@ -176,7 +175,7 @@ unsigned char ** malloc_2_array(int r,int c){
 	int i;
 	unsigned char **buf=(unsigned char **)malloc(r*sizeof(unsigned char *));
 	for(i=0;i<r;i++){
-		buf[i]=(unsigned char *)malloc(c*sizeof(unsigned char));
+		buf[i]=(unsigned char *)malloc(c);
 		memset(buf[i],0,c);
 	}
 	return buf;
@@ -211,12 +210,22 @@ void copyto(unsigned char *dst,unsigned char **res,int h_size,int w_size,int h_o
 		memcpy(p,q,w_size);
 		p+=w_size;
 	}
+	//echodata(dst,h_size*w_size);
 }
 void echodata(unsigned char *d,int size){
 	int i;
 	for(i=0;i<size;i++)
 		printf("%d ",d[i]);
 	printf("\n");
+}
+static void echoarray(unsigned char **arr,int r,int c){
+	int i,j;
+	for(i=0;i<r;i++){
+		for(j=0;j<c;j++){
+			printf("%d ",arr[i][j] );
+		}
+		printf("\n");
+	}
 }
 void pic_chunk(struct chunk *c,struct jpeg_decompress_struct *cinfo){
 	int height=cinfo->output_height;
@@ -234,6 +243,7 @@ void pic_chunk(struct chunk *c,struct jpeg_decompress_struct *cinfo){
 		TIMER_BEGIN(1);
 		c=new_chunk(height*width3);
 		copyto(c->data,buf,height,width3,0,0);
+
 		c->row=height;
 		c->column=width;
 		sync_queue_push(read_queue, c);
