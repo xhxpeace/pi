@@ -13,12 +13,14 @@ Queue* queue_new() {
 	Queue *queue = (Queue*) malloc(sizeof(Queue));
 	queue->first = queue->last = 0;
 	queue->elem_num = 0;
+	queue->file_num = 0;
 	return queue;
 }
 
 void queue_init(Queue *queue) {
 	queue->first = queue->last = 0;
 	queue->elem_num = 0;
+	queue->file_num = 0;
 }
 
 void queue_empty(Queue *queue, void (*free_data)(void*)) {

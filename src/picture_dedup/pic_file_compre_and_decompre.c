@@ -399,8 +399,7 @@ void restore_commom_chunk(unsigned char **outbuf,struct chunk *c,unsigned char *
 		inbuf[i+7]=c->column>>8;
 	}
 	
-	for(i=0;i<realsize;i++)
-		inbuf[headlen+i]=c->data[i];
+	memcpy(inbuf+headlen,c->data,realsize);
 	//decompress to outbuf
 	read_from_mem(inbuf,headlen+realsize,outbuf);
 	/*free(c->data);

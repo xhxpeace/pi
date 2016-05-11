@@ -19,6 +19,7 @@ typedef struct queue_ele_tag {
 typedef struct queue_tag {
 	queue_ele_t *first, *last; /* work queue */
 	int elem_num;
+	int file_num;
 	//int max_elem_num; //-1 means infi.
 } Queue;
 
