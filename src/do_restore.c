@@ -43,8 +43,7 @@ void sync_Fqueue_push(SyncQueue* s_queue, void* item) {
 		return;
 	}
 
-	while (s_queue->max_size > 0
-			&& queue_size(s_queue->queue) >= s_queue->max_size) {
+	while (s_queue->queue->file_num > THREAD_NUM+1 ) {
 		pthread_cond_wait(&s_queue->max_work, &s_queue->mutex);
 	}
 
@@ -378,21 +377,21 @@ void restore_jpg_file(FILE *fp,struct chunk *c,Queue *sub,int row,int column){
 		free((void *)picbuf[i]);
 	free((void *)picbuf);
 }
-/*static void *restore_data_thread1(void *arg) {
+static void *restore_data_thread1(void *arg) {
 	Queue *sub=queue_new();
 	struct chunk *c;
 	while(sync_subQueue_pop(restore_chunk_queue,sub)){
-		printf("subsize=%d   :",sub->elem_num );
+		//printf("subsize=%d   :",sub->elem_num );
 		while ((c = queue_pop(sub))) {	
 			if(CHECK_CHUNK(c,CHUNK_FILE_START))
-				printf("start->");	
+				printf("start->%s->",c->data);	
 			else if(CHECK_CHUNK(c,CHUNK_FILE_END))
 				printf("end\n");
-			else printf("data->");
+			//else printf("data->");
 		}
 	}
 
-}*/
+}
 static void *restore_data_thread(void *arg) {
 	Queue *sub=queue_new();
 	while(sync_subQueue_pop(restore_chunk_queue,sub)){
@@ -407,7 +406,7 @@ static void *restore_data_thread(void *arg) {
 				row=c->row;
 				column=c->column;
 				
-				//图片文件的高不可能为0
+				//图片文件的高不为0
 				if(PIC_CHUNK_YES_OR_NO&&row!=0){
 					c->data[c->size-2]='\0';
 				}
@@ -434,7 +433,7 @@ static void *restore_data_thread(void *arg) {
 
 				if (destor.simulation_level == SIMULATION_NO) {
 					assert(fp == NULL);
-					fp = fopen(filepath, "wb");
+					//fp = fopen(filepath, "wb");
 				}
 
 				sdsfree(filepath);
@@ -448,8 +447,151 @@ static void *restore_data_thread(void *arg) {
 			} else {
 				assert(destor.simulation_level == SIMULATION_NO);
 				//启用图片去重且块为图片块
-				if(PIC_CHUNK_YES_OR_NO&&row >0 && column>0){		
-					restore_jpg_file(fp,c,sub,row,column);
+				if(PIC_CHUNK_YES_OR_NO&&row >0 && column>0){	
+					int chunklenth=PIC_CHUNK_ROW;
+					int rleft=row%chunklenth;
+					int rborder=row-rleft;
+					int cleft=column%chunklenth;
+					int cborder=column-cleft;
+					int quality=0;
+					int headlen=0;
+					int pr=0;
+					int pc=0;
+					int i,j;
+
+					unsigned char **picbuf=(unsigned char **)malloc(row*sizeof(unsigned char*));
+					for(i=0;i<row;i++){
+						picbuf[i]=(unsigned char*)malloc(column*3);
+					}
+					//printf("pic r=%d c=%d\n",row,column );
+
+					//解压块
+					/*TIMER_DECLARE(1);
+					TIMER_BEGIN(1);*/
+					if(row<PIC_CHUNK_ROW || column<PIC_CHUNK_ROW){
+						int temp=column*3;
+						/*unsigned char **outbuf=malloc_2_array(row,temp);*/
+						quality=(int)c->data[c->size-2];	
+						unsigned char *header=get_head(quality,&headlen);
+						restore_commom_chunk(picbuf,c,header,headlen);
+
+						free(header);
+						header = NULL;
+						free_chunk(c);
+						c = queue_pop(sub);	
+						/*for(i=0;i<row;i++)
+							memcpy(picbuf[i],outbuf[i],temp);*/
+						/*echoarray(outbuf,row,temp);
+						echoarray(picbuf,row,temp);*/
+					}
+					else{
+						while(!CHECK_CHUNK(c, CHUNK_FILE_END)){						
+							//完整row and column,c->row=c->column,outbuf,temp可重复使用
+							//can't use malloc_2_array();
+							int temp_row=c->row;
+							unsigned char **outbuf=(unsigned char **)malloc(temp_row*sizeof(unsigned char *));
+							int temp=c->column*3;
+							for(i=0;i<temp_row;i++)
+								outbuf[i]=(unsigned char *)malloc(temp);
+
+							while(pr<rborder){
+								quality=(int)c->data[c->size-2];
+								//printf("-------->complete chunk ----qa=%d row=%d c=%d\n",quality,c->row,c->column);
+								//printf("c=%d qa=%d\n",++count,quality );
+								unsigned char *header=get_head(quality,&headlen);
+								restore_commom_chunk(outbuf,c,header,headlen);
+								for(i=0;i<temp_row;i++)
+									memcpy(picbuf[pr+i]+pc,outbuf[i],temp);
+								
+								pc+=temp;
+								if(pc==cborder*3) {pc=0;pr+=temp_row;}
+
+								free(header);
+								header = NULL;
+								free_chunk(c);
+								c = queue_pop(sub);
+								
+							}
+							//释放outbuf
+							for(i=0;i<temp_row;i++)
+								free((void *)outbuf[i]);
+							free((void *)outbuf);
+							//剩余列
+							//因为row和column发生了变化，重新申请outbuf
+							//printf("ac=%d\n",++count );
+							if(cleft!=0){
+								//printf("last chunk r=%d c=%d\n",c->row,c->column );
+								temp=c->column*3;
+								unsigned char **outbuf=(unsigned char **)malloc(c->row*sizeof(unsigned char *));
+								for(i=0;i<c->row;i++)
+									outbuf[i]=(unsigned char *)malloc(temp);
+
+								quality=(int)c->data[c->size-2];
+
+								unsigned char *header=get_head(quality,&headlen);
+								//printf("headlen= %d \n",headlen );
+								restore_commom_chunk(outbuf,c,header,headlen);
+								
+								int temp1=cborder*3;
+								//printf("cborder=%d\n",cborder );
+								for(i=0;i<c->row;i++)
+									memcpy(picbuf[i]+temp1,outbuf[i],temp);
+
+								free(header);
+								header = NULL;
+								for(i=0;i<c->row;i++)
+									free((void *)outbuf[i]);
+								free((void *)outbuf);
+								free_chunk(c);
+								c = queue_pop(sub);
+								
+							}
+						
+							//处理剩余行,这时pc=0,pr=rborder
+							if(rleft!=0){
+								//if(rleft<=chunklenth/4)//剩余行只分为1块
+
+								temp=c->column*3;
+								unsigned char **outbuf=(unsigned char **)malloc(c->row*sizeof(unsigned char *));
+								for(i=0;i<c->row;i++)
+									outbuf[i]=(unsigned char *)malloc(temp);
+								quality=(int)c->data[c->size-2];	
+								unsigned char *header=get_head(quality,&headlen);
+								restore_commom_chunk(outbuf,c,header,headlen);
+								
+								for(i=0;i<c->row;i++)
+									memcpy(picbuf[pr+i]+pc,outbuf[i],temp);
+
+								free(header);
+								header = NULL;		
+								for(i=0;i<c->row;i++)
+									free((void *)outbuf[i]);
+								free((void *)outbuf);
+								free_chunk(c);
+								c=queue_pop(sub);
+							}
+						}						
+					// restore_jpg_file(fp,c,sub,row,column);
+					}
+
+					if(CHECK_CHUNK(c,CHUNK_FILE_END)){
+						free_chunk(c);
+					}else{
+						printf("not file end!\n");
+						exit(-1);
+					}
+
+					/*if(!write_jpeg_file(fp,picbuf,99,column,row)){
+						printf("write jpeg file error!\n");
+						exit(1);
+					}*/
+					/*TIMER_END(1,jcr.compre_time);*/
+
+					//fclose(fp);
+					fp = NULL;
+					for(i=0;i<row;i++)
+						free((void *)picbuf[i]);
+					free((void *)picbuf);
 				}
 				else{//common chunk
 					VERBOSE("Restoring %d bytes", c->size);
@@ -462,6 +604,8 @@ static void *restore_data_thread(void *arg) {
 		}
 
 	}
+	free(sub);
+	sub=NULL;
 }
 void start_restore_data_phase() {
 	int i=0;
