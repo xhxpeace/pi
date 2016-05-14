@@ -7,7 +7,7 @@
 
 #ifndef RESTORE_H_
 #define RESTORE_H_
-#define THREAD_NUM 4
+#define THREAD_NUM 1
 #include "utils/sync_queue.h"
 
 SyncQueue *restore_chunk_queue;

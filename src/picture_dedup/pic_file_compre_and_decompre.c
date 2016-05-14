@@ -173,13 +173,14 @@ int chunk_judge(struct chunk *c)
 //create two-dimensional array
 unsigned char ** malloc_2_array(int r,int c){
 	int i;
-	unsigned char **buf=(unsigned char **)malloc(r*sizeof(unsigned char *));
+	unsigned char **buf= (unsigned char **) malloc(r*sizeof(unsigned char *));
 	for(i=0;i<r;i++){
-		buf[i]=(unsigned char *)malloc(c);
+		buf[i]=(unsigned char *)malloc(c);	
 		memset(buf[i],0,c);
 	}
 	return buf;
 }
+
 //free two-dimensional array
 void free_2_array(unsigned char **buf,int r){
 	int i;
