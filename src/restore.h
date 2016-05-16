@@ -7,12 +7,15 @@
 
 #ifndef RESTORE_H_
 #define RESTORE_H_
-#define THREAD_NUM 8
+#define THREAD_NUM 1
+
 #include "utils/sync_queue.h"
 
 SyncQueue *restore_chunk_queue;
 SyncQueue *restore_recipe_queue;
 
+
+static unsigned char *head[20];
 static pthread_t restore_data_t[THREAD_NUM];
 
 void* assembly_restore_thread(void *arg);

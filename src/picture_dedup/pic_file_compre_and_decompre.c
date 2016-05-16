@@ -89,6 +89,7 @@ int write_jpeg_file(FILE *outfile,unsigned char **data,int quality,int image_wid
   	
   	jpeg_finish_compress(&cinfo);
 	jpeg_destroy_compress(&cinfo);
+	fclose(outfile);
 	return 1;
 }
 int write_to_mem(unsigned char **outbuf,unsigned char *data,int quality,int width,int height){
@@ -381,10 +382,10 @@ void restore_pure_chunk(struct chunk *c,unsigned char **buf){
 }
 
 //jpeg decompress
-void restore_commom_chunk(unsigned char **outbuf,struct chunk *c,unsigned char *header,int headlen){
+void restore_commom_chunk(unsigned char **outbuf,struct chunk *c,unsigned char *header){
 	int realsize=c->size-4;
-	unsigned char *inbuf=malloc(headlen+realsize);
-	memcpy(inbuf,header,headlen);
+	unsigned char *inbuf=malloc(HEADLEN+realsize);
+	memcpy(inbuf,header,HEADLEN);
 
 	//write the width and height to the head information
 	int i=158;//FFC0的FF所在位置
@@ -400,13 +401,12 @@ void restore_commom_chunk(unsigned char **outbuf,struct chunk *c,unsigned char *
 		inbuf[i+7]=c->column>>8;
 	}
 	
-	memcpy(inbuf+headlen,c->data,realsize);
+	memcpy(inbuf+HEADLEN,c->data,realsize);
 	//decompress to outbuf
-	read_from_mem(inbuf,headlen+realsize,outbuf);
+	read_from_mem(inbuf,HEADLEN+realsize,outbuf);
 	/*free(c->data);
 	c->data=NULL;*/
 	free(inbuf);
-	free(header);
 }
 int read_quality(FILE *fp){
 	//sum of (quality=80~99)Y table-64

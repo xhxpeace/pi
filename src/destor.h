@@ -166,6 +166,8 @@
 #define COMPLETE_PIC_CHUNK 1
 #define INCOMPLETE_PIC_CHUNK 2
 /*Ä¬ÈÏÍ¼Æ¬¿é´óÐ¡*/
+
+#define HEADLEN 609
 #define PIC_CHUNK_ROW 100
 #define SMALL_FILE_SIZE 5120
 #define HASH_SIZE 100
