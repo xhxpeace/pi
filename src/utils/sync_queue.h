@@ -16,6 +16,8 @@ typedef struct {
 
 SyncQueue* sync_queue_new(int);
 void sync_queue_free(SyncQueue*, void (*)(void*));
+void sync_Fqueue_push(SyncQueue* s_queue, void* item);
+int sync_subQueue_pop(SyncQueue* s_queue,Queue *sub);
 void sync_queue_push(SyncQueue*, void*);
 void* sync_queue_pop(SyncQueue*);
 void sync_queue_term(SyncQueue*);

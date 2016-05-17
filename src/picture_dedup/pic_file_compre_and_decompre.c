@@ -28,21 +28,21 @@ METHODDEF(void) my_error_exit (j_common_ptr cinfo)
 }
 
 
-void pic_chunk(struct chunk *c,struct jpeg_decompress_struct *cinfo);
+void pic_chunk(struct chunk *c,struct jpeg_decompress_struct *cinfo,Queue *queue);
 
-//读jpg图片数据
-int read_jpeg_file(FILE *infile,struct chunk *c)
+//read and chunk jpg file
+/*int read_chunk_jpeg(FILE *infile,struct chunk *c)
 {
 	struct jpeg_decompress_struct cinfo;
 	struct my_error_mgr jerr;
-    cinfo.err = jpeg_std_error(&jerr.pub);
+     cinfo.err = jpeg_std_error(&jerr.pub);
 	jerr.pub.error_exit = my_error_exit;
 	if (setjmp(jerr.setjmp_buffer)) 
 	{//file error
 	  jpeg_destroy_decompress(&cinfo);
 	  fclose(infile);
 	  printf("pic_file/read_jpeg_file:decompress jpeg file error!\n");
-	  return -1; 
+	  return 0; 
 	}
 	jpeg_create_decompress(&cinfo);
 	jpeg_stdio_src(&cinfo, infile);//specify data source
@@ -59,8 +59,8 @@ int read_jpeg_file(FILE *infile,struct chunk *c)
 	jpeg_finish_decompress(&cinfo);
 	jpeg_destroy_decompress(&cinfo);
     return 1;
-}
-//写jpg图片数据
+}*/
+
 int write_jpeg_file(FILE *outfile,unsigned char **data,int quality,int image_width,int image_height)
 {
 	struct jpeg_compress_struct cinfo;
@@ -146,6 +146,34 @@ void read_from_mem(unsigned char *inbuf,unsigned long inlen,unsigned char **outb
 	jpeg_finish_decompress(&cinfo);
 	jpeg_destroy_decompress(&cinfo);
 }
+int mem_read_chunk_jpeg(struct chunk *fc,struct chunk *c,Queue *queue){
+	struct jpeg_decompress_struct cinfo;
+	struct my_error_mgr jerr;
+     cinfo.err = jpeg_std_error(&jerr.pub);
+	jerr.pub.error_exit = my_error_exit;
+
+	if (setjmp(jerr.setjmp_buffer)) 
+	{
+	  jpeg_destroy_decompress(&cinfo);
+	  printf("pic_file/read_jpeg_file:decompress jpeg file error!\n");
+	  return 0; 
+	}
+
+	jpeg_create_decompress(&cinfo);
+	jpeg_stdio_src(&cinfo, fc->data,fc->size);//specify data source
+	jpeg_read_header(&cinfo, TRUE);//read the information of the jpg file
+	jpeg_start_decompress(&cinfo);
+	
+	c->row=cinfo.output_height;//jpg height
+	c->column=cinfo.output_width;//jpg width
+	queue_push(queue, c);//push jpg FILE_START
+
+	pic_chunk(c,&cinfo,queue);
+	
+	jpeg_finish_decompress(&cinfo);
+	jpeg_destroy_decompress(&cinfo);
+     return 1;
+}
 //判断是否为图片文件,0表示不是图片文件，1表示是图片文件
 int file_judge(char *filename)
 {
@@ -229,7 +257,7 @@ static void echoarray(unsigned char **arr,int r,int c){
 		printf("\n");
 	}
 }
-void pic_chunk(struct chunk *c,struct jpeg_decompress_struct *cinfo){
+void pic_chunk(struct chunk *c,struct jpeg_decompress_struct *cinfo,Queue *queue){
 	int height=cinfo->output_height;
 	int width=cinfo->output_width;
 	int width3=width*3;
@@ -248,7 +276,7 @@ void pic_chunk(struct chunk *c,struct jpeg_decompress_struct *cinfo){
 
 		c->row=height;
 		c->column=width;
-		sync_queue_push(read_queue, c);
+		queue_push(queue, c);
 		c=NULL;
 		TIMER_END(1, jcr.chunk_time);
 	}else{
@@ -274,7 +302,7 @@ void pic_chunk(struct chunk *c,struct jpeg_decompress_struct *cinfo){
 				copyto(c->data,buf,clen,clen3,h_offset,w_offset);
 				c->row=clen;
 				c->column=clen;
-				sync_queue_push(read_queue, c);
+				queue_push(queue, c);
 				c=NULL;
 				w_offset+=clen3;
 			}
@@ -288,7 +316,7 @@ void pic_chunk(struct chunk *c,struct jpeg_decompress_struct *cinfo){
 			copyto(c->data,buf,h_split,w_left3,0,w_split3);
 			c->row=h_split;
 			c->column=w_left;
-			sync_queue_push(read_queue,c);
+			queue_push(queue, c);
 			c=NULL;
 		}
 
@@ -298,7 +326,7 @@ void pic_chunk(struct chunk *c,struct jpeg_decompress_struct *cinfo){
 			copyto(c->data,buf,h_left,width3,h_split,0);
 			c->row=h_left;
 			c->column=width;
-			sync_queue_push(read_queue,c);
+			queue_push(queue, c);
 			c=NULL;
 		}
 
@@ -408,33 +436,30 @@ void restore_commom_chunk(unsigned char **outbuf,struct chunk *c,unsigned char *
 	c->data=NULL;*/
 	free(inbuf);
 }
-int read_quality(FILE *fp){
+int read_quality(unsigned char *data,unsigned int len){
 	//sum of (quality=80~99)Y table-64
 	int ratio[20]={22,87,157,228,305,377,454,528,603,672,750,820,897,967,1045,1115,1187,1262,1334,1413};
-	long len=0;
-	fseek(fp,0L,SEEK_END);
-	len=ftell(fp);
-	fseek(fp,0L,SEEK_SET);
-	unsigned char *buf=(unsigned char *)malloc(len);
-	fread(buf,len,1,fp);
 	int i=0;
 	int j;
-	while(1){if(buf[i]==255&&buf[i+1]==219) break;
-			i++;}
+	while(i<len-1){
+		if(data[i]==255&&data[i+1]==219) break;
+		i++;
+	}
+	if(i == len-1){
+		printf("read quality error\n");
+		exit(-1);
+	}
+
 	i+=5;
 	int sum=0;
 	for(j=0;j<64;j++){
-		sum+=buf[i];
+		sum+=data[i];
 		i++;		
 	}
-	free(buf);
-	buf=NULL;
 	
 	sum-=64;
-	fseek(fp,0L,SEEK_SET);
 	i=0;
 	while(i<20&&sum>ratio[i]) i++;
-	//printf("i=%d\n",i);
 	if(i>=20) return 80;
 	else{
 		i=(ratio[i]-sum)<=(sum-ratio[i-1])?i:(i-1);

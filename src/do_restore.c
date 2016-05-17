@@ -23,211 +23,22 @@ unsigned char *get_head(int quality){
 	fclose(fp1);
 	return header;
 }
-static void echoarray(unsigned char **arr,int r,int c){
-	int i,j;
-	for(i=0;i<r;i++){
-		for(j=0;j<c;j++){
-			printf("%d ",arr[i][j] );
-		}
-		printf("\n");
-	}
-}
-void sync_Fqueue_push(SyncQueue* s_queue, void* item) {
-	if (pthread_mutex_lock(&s_queue->mutex) != 0) {
-		puts("failed to lock!");
-		return;
-	}
-
-	if (s_queue->term == 1) {
-		pthread_mutex_unlock(&s_queue->mutex);
-		return;
-	}
-
-	while (s_queue->queue->file_num > THREAD_NUM+1 ) {
-		pthread_cond_wait(&s_queue->max_work, &s_queue->mutex);
-	}
-
-	queue_push(s_queue->queue, item);
-
-	struct chunk *c=(struct chunk *)(item);
-	if(CHECK_CHUNK(c,CHUNK_FILE_END)){
-		s_queue->queue->file_num++;
-		
-	}
-	if(s_queue->queue->file_num>0)
-		pthread_cond_broadcast(&s_queue->min_work);
-
-	if (pthread_mutex_unlock(&s_queue->mutex)) {
-		puts("failed to lock!");
-		return;
-	}
-}
-static void* lru_restore_thread(void *arg) {
-	struct lruCache *cache;
-	if (destor.simulation_level >= SIMULATION_RESTORE)
-		cache = new_lru_cache(destor.restore_cache[1], free_container_meta,
-				lookup_fingerprint_in_container_meta);
-	else
-		cache = new_lru_cache(destor.restore_cache[1], free_container,
-				lookup_fingerprint_in_container);
-
-	struct chunk* c;
-	while ((c = sync_queue_pop(restore_recipe_queue))) {
-
-		if (CHECK_CHUNK(c, CHUNK_FILE_START) || CHECK_CHUNK(c, CHUNK_FILE_END)) {
-			
-			sync_Fqueue_push(restore_chunk_queue, c);
-
+void make_root_dir(){
+	char *p, *q;
+	q = jcr.path + 1;/* ignore the first char*/
+	//recursively make directory
+	while ((p = strchr(q, '/'))) {
+		if (*p == *(p - 1)) {
+			q++;
 			continue;
 		}
-
-		TIMER_DECLARE(1);
-		TIMER_BEGIN(1);
-
-		if (destor.simulation_level >= SIMULATION_RESTORE) {
-			struct containerMeta *cm = lru_cache_lookup(cache, &c->fp);
-			if (!cm) {
-				VERBOSE("Restore cache: container %lld is missed", c->id);
-				cm = retrieve_container_meta_by_id(c->id);
-				assert(lookup_fingerprint_in_container_meta(cm, &c->fp));
-				lru_cache_insert(cache, cm, NULL, NULL);
-				jcr.read_container_num++;
-			}
-
-			TIMER_END(1, jcr.read_chunk_time);
-		} else {
-			struct container *con = lru_cache_lookup(cache, &c->fp);
-			if (!con) {
-				VERBOSE("Restore cache: container %lld is missed", c->id);
-				con = retrieve_container_by_id(c->id);
-				lru_cache_insert(cache, con, NULL, NULL);
-				jcr.read_container_num++;
-			}
-			struct chunk *rc = get_chunk_in_container(con, &c->fp);
-			assert(rc);
-			TIMER_END(1, jcr.read_chunk_time);
-			sync_Fqueue_push(restore_chunk_queue, rc);
+		*p = 0;
+		if (access(jcr.path, 0) != 0) {
+			mkdir(jcr.path, S_IRWXU | S_IRWXG | S_IRWXO);
 		}
-
-		free_chunk(c);
+		*p = '/';
+		q = p + 1;
 	}
-
-	sync_queue_term(restore_chunk_queue);
-
-	free_lru_cache(cache);
-
-	return NULL;
-}
-
-static void* read_recipe_thread(void *arg) {
-
-	int i, j, k;
-	for (i = 0; i < jcr.bv->number_of_files; i++) {
-		TIMER_DECLARE(1);
-		TIMER_BEGIN(1);
-
-		struct fileRecipeMeta *r = read_next_file_recipe_meta(jcr.bv);
-
-		struct chunk *c = new_chunk(sdslen(r->filename) + 1);
-		strcpy(c->data, r->filename);
-		SET_CHUNK(c, CHUNK_FILE_START);//获得文件名
-		//获得文件宽高
-		c->row=r->row;
-		c->column=r->column;
-		TIMER_END(1, jcr.read_recipe_time);
-
-		sync_queue_push(restore_recipe_queue, c);
-
-		jcr.file_num++;
-
-		for (j = 0; j < r->chunknum; j++) {
-			TIMER_DECLARE(1);
-			TIMER_BEGIN(1);
-
-			struct chunkPointer* cp = read_next_n_chunk_pointers(jcr.bv, 1, &k);
-
-			struct chunk* c = new_chunk(0);
-			memcpy(&c->fp, &cp->fp, sizeof(fingerprint));
-			c->size = cp->size;
-			c->id = cp->id;
-			c->row=cp->row;
-			c->column=cp->column;
-			TIMER_END(1, jcr.read_recipe_time);
-			jcr.data_size += c->size;
-			jcr.chunk_num++;
-
-			sync_queue_push(restore_recipe_queue, c);
-			free(cp);
-		}
-
-		c = new_chunk(0);
-		SET_CHUNK(c, CHUNK_FILE_END);
-		sync_queue_push(restore_recipe_queue, c);
-
-		free_file_recipe_meta(r);
-	}
-
-	sync_queue_term(restore_recipe_queue);
-	return NULL;
-}
-
-
-int  sub_queue_pop(Queue *queue,Queue *sub) {
-	if(queue->elem_num == 0){
-		return 0;
-	}
-	queue_ele_t *first = queue->first;
-	struct chunk *c = (struct chunk *)(first->data);
-	if(!CHECK_CHUNK(c,CHUNK_FILE_START)){
-		printf("Lost file start\n");
-		exit(-1);
-	}
-
-	int count=1;
-	queue_ele_t *p=first->next;
-     while(1){
-    		if(p==NULL){
-	    		printf("Lost file end\n");
-	    		exit(-1);
-	    	}
-	    	count++;
-    		c = (struct chunk *)(p->data);
-    		if(CHECK_CHUNK(c,CHUNK_FILE_END)){
-	    		break;
-	    	}
-	        	
-	    	p=p->next;
-    }
-    sub->first=first;
-    sub->last=p;
-    sub->elem_num=count;
-
-    queue->first=p->next;
-    if(queue->last == p)
-    	queue->last == NULL;
-    queue->elem_num-=count;
-    return 1;
-
-}
-int sync_subQueue_pop(SyncQueue* s_queue,Queue *sub) {
-	if (pthread_mutex_lock(&s_queue->mutex) != 0) {
-		puts("failed to lock!");
-		return 0;
-	}
-	while (s_queue->queue->file_num == 0) {
-		if (s_queue->term == 1) {
-			pthread_mutex_unlock(&s_queue->mutex);
-			return 0;
-		}
-		pthread_cond_wait(&s_queue->min_work, &s_queue->mutex);
-	}
-	if(!sub_queue_pop(s_queue->queue,sub))
-		return 0;
-	s_queue->queue->file_num--;
-	pthread_cond_broadcast(&s_queue->max_work);
-
-	pthread_mutex_unlock(&s_queue->mutex);
-	return 1;
 }
 
 void restore_jpg_file(FILE *fp,struct chunk *c,Queue *sub,int row,int column){
@@ -352,13 +163,133 @@ void restore_jpg_file(FILE *fp,struct chunk *c,Queue *sub,int row,int column){
 		free((void *)picbuf[i]);
 	free((void *)picbuf);
 }
+
+static void echoarray(unsigned char **arr,int r,int c){
+	int i,j;
+	for(i=0;i<r;i++){
+		for(j=0;j<c;j++){
+			printf("%d ",arr[i][j] );
+		}
+		printf("\n");
+	}
+}
+
+static void* lru_restore_thread(void *arg) {
+	struct lruCache *cache;
+	if (destor.simulation_level >= SIMULATION_RESTORE)
+		cache = new_lru_cache(destor.restore_cache[1], free_container_meta,
+				lookup_fingerprint_in_container_meta);
+	else
+		cache = new_lru_cache(destor.restore_cache[1], free_container,
+				lookup_fingerprint_in_container);
+
+	struct chunk* c;
+	while ((c = sync_queue_pop(restore_recipe_queue))) {
+
+		if (CHECK_CHUNK(c, CHUNK_FILE_START) || CHECK_CHUNK(c, CHUNK_FILE_END)) {
+			
+			sync_Fqueue_push(restore_chunk_queue, c);
+
+			continue;
+		}
+
+		TIMER_DECLARE(1);
+		TIMER_BEGIN(1);
+
+		if (destor.simulation_level >= SIMULATION_RESTORE) {
+			struct containerMeta *cm = lru_cache_lookup(cache, &c->fp);
+			if (!cm) {
+				VERBOSE("Restore cache: container %lld is missed", c->id);
+				cm = retrieve_container_meta_by_id(c->id);
+				assert(lookup_fingerprint_in_container_meta(cm, &c->fp));
+				lru_cache_insert(cache, cm, NULL, NULL);
+				jcr.read_container_num++;
+			}
+
+			TIMER_END(1, jcr.read_chunk_time);
+		} else {
+			struct container *con = lru_cache_lookup(cache, &c->fp);
+			if (!con) {
+				VERBOSE("Restore cache: container %lld is missed", c->id);
+				con = retrieve_container_by_id(c->id);
+				lru_cache_insert(cache, con, NULL, NULL);
+				jcr.read_container_num++;
+			}
+			struct chunk *rc = get_chunk_in_container(con, &c->fp);
+			assert(rc);
+			TIMER_END(1, jcr.read_chunk_time);
+			sync_Fqueue_push(restore_chunk_queue, rc);
+		}
+
+		free_chunk(c);
+	}
+
+	sync_queue_term(restore_chunk_queue);
+
+	free_lru_cache(cache);
+
+	return NULL;
+}
+
+static void* read_recipe_thread(void *arg) {
+
+	int i, j, k;
+	for (i = 0; i < jcr.bv->number_of_files; i++) {
+		TIMER_DECLARE(1);
+		TIMER_BEGIN(1);
+
+		struct fileRecipeMeta *r = read_next_file_recipe_meta(jcr.bv);
+
+		struct chunk *c = new_chunk(sdslen(r->filename) + 1);
+		strcpy(c->data, r->filename);
+		SET_CHUNK(c, CHUNK_FILE_START);//获得文件名
+		//获得文件宽高
+		c->row=r->row;
+		c->column=r->column;
+		TIMER_END(1, jcr.read_recipe_time);
+
+		sync_queue_push(restore_recipe_queue, c);
+
+		jcr.file_num++;
+
+		for (j = 0; j < r->chunknum; j++) {
+			TIMER_DECLARE(1);
+			TIMER_BEGIN(1);
+
+			struct chunkPointer* cp = read_next_n_chunk_pointers(jcr.bv, 1, &k);
+
+			struct chunk* c = new_chunk(0);
+			memcpy(&c->fp, &cp->fp, sizeof(fingerprint));
+			c->size = cp->size;
+			c->id = cp->id;
+			c->row=cp->row;
+			c->column=cp->column;
+			TIMER_END(1, jcr.read_recipe_time);
+			jcr.data_size += c->size;
+			jcr.chunk_num++;
+
+			sync_queue_push(restore_recipe_queue, c);
+			free(cp);
+		}
+
+		c = new_chunk(0);
+		SET_CHUNK(c, CHUNK_FILE_END);
+		sync_queue_push(restore_recipe_queue, c);
+
+		free_file_recipe_meta(r);
+	}
+
+	sync_queue_term(restore_recipe_queue);
+	return NULL;
+}
+
 static void *restore_data_thread(void *arg) {
 	Queue *sub=queue_new();
 	while(sync_subQueue_pop(restore_chunk_queue,sub)){
 		struct chunk *c = NULL;
 		FILE *fp = NULL;
-		int row=0;
-		int column=0;
+		int row=0;//jpg height
+		int column=0;//jpg width 
 		while ((c = queue_pop(sub))) {			
 			/*TIMER_DECLARE(1);
 			TIMER_BEGIN(1);*/
@@ -433,23 +364,6 @@ void stop_restore_data_phase() {
 		pthread_join(restore_data_t[i], NULL);
 }
 
-void make_root_dir(){
-	char *p, *q;
-	q = jcr.path + 1;/* ignore the first char*/
-	//recursively make directory
-	while ((p = strchr(q, '/'))) {
-		if (*p == *(p - 1)) {
-			q++;
-			continue;
-		}
-		*p = 0;
-		if (access(jcr.path, 0) != 0) {
-			mkdir(jcr.path, S_IRWXU | S_IRWXG | S_IRWXO);
-		}
-		*p = '/';
-		q = p + 1;
-	}
-}
 void do_restore(int revision, char *path) {
 	init_recipe_store();
 	init_container_store();

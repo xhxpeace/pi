@@ -3,7 +3,8 @@
 #include "utils/rabin_chunking.h"
 #include "backup.h"
 
-static pthread_t chunk_t;
+#define CHUNK_THREAD_NUM 2
+static pthread_t chunk_t[CHUNK_THREAD_NUM];
 static int64_t chunk_num;
 
 static void* chunk_thread(void *arg) {
@@ -15,42 +16,43 @@ static void* chunk_thread(void *arg) {
 	unsigned char *zeros = malloc(destor.chunk_max_size);
 	bzero(zeros, destor.chunk_max_size);
 	unsigned char *data = malloc(destor.chunk_max_size);
-	unsigned char *filename=NULL;
+	//unsigned char *filename=NULL;
 	struct chunk* c = NULL;
-
+	Queue *read_sub = queue_new();
+	Queue *chunk_sub = queue_new();
+	int is_end = 1;
+	int quality = 90;
 	while (1) {
 
-		/* Try to receive a CHUNK_FILE_START. */
-		c = sync_queue_pop(read_queue);
+		is_end = sync_subQueue_pop(read_queue,read_sub);
 
-		if (c == NULL) {
+		if (is_end == 0) {
 			sync_queue_term(chunk_queue);
 			break;
 		}
 
+		c = queue_pop(read_sub);//jpg FILE_START
 		assert(CHECK_CHUNK(c, CHUNK_FILE_START));
-		filename=malloc(strlen(c->data)+1);
+		/*filename=malloc(strlen(c->data)+1);
 		filename[strlen(c->data)]='\0';
-		strcpy(filename,c->data);
-		sync_queue_push(chunk_queue, c);
-		
-		if(PIC_CHUNK_YES_OR_NO&&c->row!=0){
-			while(1){
-				c=sync_queue_pop(read_queue);
-				if (!CHECK_CHUNK(c, CHUNK_FILE_END)){
-					sync_queue_push(chunk_queue, c);				
-				}
-				else{ 
-					break;
-				}
-			}
-			sync_queue_push(chunk_queue, c);
-			windows_reset();
-			c=NULL;						
+		strcpy(filename,c->data);*/
+		int isJpgFile = c->row;
+				
+		if(PIC_CHUNK_YES_OR_NO && isJpgFile != 0){
+			struct chunk *fc = queue_pop(read_sub);//jpg data
+			
+			quality = read_quality(fc->data,fc->size);
+			quality = set_quality(quality);
+			c->data[c->size-2]=(unsigned char)quality;//put quality of jpg to string of filename 
+			
+			if(!mem_read_chunk_jpeg(fc,c,chunk_sub))
+				exit(-1);
+			free_chunk(fc);
 		}
 		else{
+			queue_push(chunk_sub, c);//FILE_START
 			/* Try to receive normal chunks. */
-			c = sync_queue_pop(read_queue);
+			c = queue_pop(read_sub);
 			if (!CHECK_CHUNK(c, CHUNK_FILE_END)) {
 				memcpy(leftbuf, c->data, c->size);
 				leftlen += c->size;
@@ -61,7 +63,7 @@ static void* chunk_thread(void *arg) {
 			while (1) {
 				/* c == NULL indicates more data for this file can be read. */
 				if ((leftlen < destor.chunk_max_size) && c == NULL) {
-					c = sync_queue_pop(read_queue);
+					c = queue_pop(read_sub);
 					if (!CHECK_CHUNK(c, CHUNK_FILE_END)) {
 						memmove(leftbuf, leftbuf + leftoff, leftlen);
 						leftoff = 0;
@@ -104,20 +106,24 @@ static void* chunk_thread(void *arg) {
 					VERBOSE("Chunk phase: %ldth chunk of %d bytes", chunk_num++,
 							chunk_size);
 
-				sync_queue_push(chunk_queue, nc);
+				queue_push(chunk_sub, nc);
 			}
 
-			sync_queue_push(chunk_queue, c);
 			leftoff = 0;
-			windows_reset();
-			c = NULL;
-		}		
+		}
+
+		queue_push(chunk_sub, c);//FILE_END		
+		windows_reset();
+		c = NULL;
+		sync_subQueue_push(chunk_queue,chunk_sub);		
 	}
 
+	free(read_sub);
+	free(chunk_sub);
 	free(leftbuf);
 	free(zeros);
 	free(data);
-	free(filename);
+	//free(filename);
 	return NULL;
 }
 
@@ -126,11 +132,17 @@ void start_chunk_phase() {
 	assert(destor.chunk_avg_size > destor.chunk_min_size);
 	assert(destor.chunk_avg_size < destor.chunk_max_size);
 	chunkAlg_init();
-	chunk_queue = sync_queue_new(1000);
-	pthread_create(&chunk_t, NULL, chunk_thread, NULL);
+	chunk_queue = sync_queue_new(10000);
+	int i;
+	for(i = 0; i < CHUNK_THREAD_NUM ; i++){
+		pthread_create(&chunk_t[i], NULL, chunk_thread, NULL);
+	}
+	
 	//printf("new chunk_thread success\n");
 }
 
 void stop_chunk_phase() {
-	pthread_join(chunk_t, NULL);
+	for(i = 0; i < CHUNK_THREAD_NUM ; i++){
+		pthread_join(chunk_t[i], NULL);
+	}	
 }

@@ -138,11 +138,6 @@ static void* sha1_thread(void* arg) {
 
 		if(PIC_CHUNK_YES_OR_NO&&c->row!=0){	
 			//can't use inbuf=malloc_2_array();
-			/*unsigned char **inbuf=(unsigned char **)malloc(c->row*sizeof(unsigned char *));
-			int i;
-			for(i=0;i<c->row;i++)
-				inbuf[i]=(unsigned char *)malloc(c->column*3*sizeof(unsigned char));
-			set_inbuf(inbuf,c);*/
 
 			//compress bit map chunk
 			unsigned char *outbuf=NULL;

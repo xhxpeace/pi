@@ -26,6 +26,7 @@ typedef struct queue_tag {
 Queue* queue_new();
 void queue_free(Queue *queue, void (*)(void*));
 void queue_push(Queue *queue, void *element);
+int  sub_queue_pop(Queue *queue,Queue *sub);
 void* queue_pop(Queue *queue);
 int queue_size(Queue *queue);
 void queue_foreach(Queue *queue, void (*func)(void *data, void *user_data),

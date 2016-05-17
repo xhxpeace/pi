@@ -56,6 +56,7 @@ void queue_push(Queue *queue, void *element) {
 	++queue->elem_num;
 }
 
+
 void* queue_pop(Queue *queue) {
 	queue_ele_t *item = 0;
 	if (queue->elem_num == 0)
@@ -71,6 +72,54 @@ void* queue_pop(Queue *queue) {
 	void *ret = item->data;
 	free(item);
 	return ret;
+}
+
+void sub_queue_push(Queue *queue, Queue *sub) {
+	queue->last->next = sub->first;
+	queue->last = sub->last;
+	queue->elem_num += sub->elem_num;
+	sub->first = NULL;
+	sub->last = NULL;
+	sub->elem_num = 0;
+}
+
+//pop a sub queue
+int  sub_queue_pop(Queue *queue,Queue *sub) {
+	if(queue->elem_num == 0){
+		return 0;
+	}
+	queue_ele_t *first = queue->first;
+	struct chunk *c = (struct chunk *)(first->data);
+	if(!CHECK_CHUNK(c,CHUNK_FILE_START)){
+		printf("Lost file start\n");
+		exit(-1);
+	}
+
+	int count=1;
+	queue_ele_t *p=first->next;
+     while(1){
+    		if(p==NULL){
+	    		printf("Lost file end\n");
+	    		exit(-1);
+	    	}
+	    	count++;
+    		c = (struct chunk *)(p->data);
+    		if(CHECK_CHUNK(c,CHUNK_FILE_END)){
+	    		break;
+	    	}
+	        	
+	    	p=p->next;
+    }
+    sub->first=first;
+    sub->last=p;
+    sub->elem_num=count;
+
+    queue->first=p->next;
+    if(queue->last == p)
+    	queue->last == NULL;
+    queue->elem_num-=count;
+    return 1;
+
 }
 
 void * queue_top(Queue *queue) {

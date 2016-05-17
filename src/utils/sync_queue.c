@@ -24,6 +24,86 @@ void sync_queue_free(SyncQueue* s_queue, void (*free_data)(void*)) {
 	free(s_queue);
 }
 
+//push an element and file_num+1 when CHUNK_FILE_END exits
+void sync_Fqueue_push(SyncQueue* s_queue, void* item) {
+	if (pthread_mutex_lock(&s_queue->mutex) != 0) {
+		puts("failed to lock!");
+		return;
+	}
+
+	if (s_queue->term == 1) {
+		pthread_mutex_unlock(&s_queue->mutex);
+		return;
+	}
+
+	while (s_queue->queue->file_num > THREAD_NUM+1 ) {
+		pthread_cond_wait(&s_queue->max_work, &s_queue->mutex);
+	}
+
+	queue_push(s_queue->queue, item);
+
+	struct chunk *c=(struct chunk *)(item);
+	if(CHECK_CHUNK(c,CHUNK_FILE_END)){
+		s_queue->queue->file_num++;
+		
+	}
+	if(s_queue->queue->file_num>0)
+		pthread_cond_broadcast(&s_queue->min_work);
+
+	if (pthread_mutex_unlock(&s_queue->mutex)) {
+		puts("failed to unlock!");
+		return;
+	}
+}
+
+void sync_subQueue_push(SyncQueue *s_queue,Queue *sub){
+	if (pthread_mutex_lock(&s_queue->mutex) != 0) {
+		puts("failed to lock!");
+		return;
+	}
+
+	if (s_queue->term == 1) {
+		pthread_mutex_unlock(&s_queue->mutex);
+		return;
+	}
+
+	while (s_queue->max_size > 0
+			&& queue_size(s_queue->queue) >= s_queue->max_size) {
+		pthread_cond_wait(&s_queue->max_work, &s_queue->mutex);
+	}
+
+	sub_queue_push(s_queue->queue, sub);
+
+	pthread_cond_broadcast(&s_queue->min_work);
+
+	if (pthread_mutex_unlock(&s_queue->mutex)) {
+		puts("failed to unlock!");
+		return;
+	}
+}
+
+//pop a sub queue
+int sync_subQueue_pop(SyncQueue* s_queue,Queue *sub) {
+	if (pthread_mutex_lock(&s_queue->mutex) != 0) {
+		puts("failed to lock!");
+		return 0;
+	}
+	while (s_queue->queue->file_num == 0) {
+		if (s_queue->term == 1) {
+			pthread_mutex_unlock(&s_queue->mutex);
+			return 0;
+		}
+		pthread_cond_wait(&s_queue->min_work, &s_queue->mutex);
+	}
+	if(!sub_queue_pop(s_queue->queue,sub))
+		return 0;
+	s_queue->queue->file_num--;
+	pthread_cond_broadcast(&s_queue->max_work);
+
+	pthread_mutex_unlock(&s_queue->mutex);
+	return 1;
+}
+
 void sync_queue_push(SyncQueue* s_queue, void* item) {
 	if (pthread_mutex_lock(&s_queue->mutex) != 0) {
 		puts("failed to lock!");
@@ -45,7 +125,7 @@ void sync_queue_push(SyncQueue* s_queue, void* item) {
 	pthread_cond_broadcast(&s_queue->min_work);
 
 	if (pthread_mutex_unlock(&s_queue->mutex)) {
-		puts("failed to lock!");
+		puts("failed to unlock!");
 		return;
 	}
 }

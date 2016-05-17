@@ -37,11 +37,12 @@ static void read_file(sds path) {
 		perror("The reason is");
 		exit(1);
 	}
-	
+	                
 	jcr.file_num++;
 	len=get_file_len(fp);
 	jcr.data_size+=(int32_t)len;
-	struct chunk *c = new_chunk(sdslen(filename) + 2);
+	struct chunk *c = new_chunk(sdslen(filename)+2);
+	memset(c->data,'\0',c->size);
 	strcpy(c->data, filename);
 
 	NOTICE("Read phase: %s", filename);
@@ -49,17 +50,23 @@ static void read_file(sds path) {
 	SET_CHUNK(c, CHUNK_FILE_START);
 
 	if(!is_small_file(len)&&PIC_CHUNK_YES_OR_NO&&file_judge(filename)){
-		int quality=read_quality(fp);
-		/*printf("read_read_qua= %d \n",quality );*/
-		quality=set_quality(quality);
-		/*printf("read_set_qua= %d \n",quality );*/
+		c->row=1;//meaning a jpg file
+		sync_queue_push(read_queue, c);//FILE_START
 
-		c->data[c->size-2]=(unsigned char)quality;
-		c->data[c->size-1]='\0';//put quality of jpg to string of filename for chunk compress
-		if(read_jpeg_file(fp,c)<0){
+		TIMER_DECLARE(1);
+		TIMER_BEGIN(1);
+		c = new_chunk(len);
+		if(fread(c->data,1,len,fp) == 0){
+			printf("read  file error!\n");
+			exit(-1);
+		}
+		sync_queue_push(read_queue, c);//file data
+
+		TIMER_END(1, jcr.read_time);
+		/*if(read_jpeg_file(fp,c)<0){
 			free_chunk(c);
 			return ;
-		}
+		}*/
 	}
 	else{
 		sync_queue_push(read_queue, c);
@@ -81,7 +88,7 @@ static void read_file(sds path) {
 	}
 	c = new_chunk(0);
 	SET_CHUNK(c, CHUNK_FILE_END);
-	sync_queue_push(read_queue, c);
+	sync_Fqueue_push(read_queue, c);//file_num++
 
 	fclose(fp);
 
