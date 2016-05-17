@@ -40,7 +40,7 @@ static void* chunk_thread(void *arg) {
 				
 		if(PIC_CHUNK_YES_OR_NO && isJpgFile != 0){
 			struct chunk *fc = queue_pop(read_sub);//jpg data
-			
+
 			quality = read_quality(fc->data,fc->size);
 			quality = set_quality(quality);
 			c->data[c->size-2]=(unsigned char)quality;//put quality of jpg to string of filename 
@@ -142,6 +142,7 @@ void start_chunk_phase() {
 }
 
 void stop_chunk_phase() {
+	int i;
 	for(i = 0; i < CHUNK_THREAD_NUM ; i++){
 		pthread_join(chunk_t[i], NULL);
 	}	

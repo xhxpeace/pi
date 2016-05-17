@@ -40,6 +40,37 @@ void make_root_dir(){
 		q = p + 1;
 	}
 }
+//push an element and file_num+1 when CHUNK_FILE_END exits
+void sync_Fqueue_push(SyncQueue* s_queue, void* item) {
+	if (pthread_mutex_lock(&s_queue->mutex) != 0) {
+		puts("failed to lock!");
+		return;
+	}
+
+	if (s_queue->term == 1) {
+		pthread_mutex_unlock(&s_queue->mutex);
+		return;
+	}
+
+	while (s_queue->queue->file_num > THREAD_NUM+1 ) {
+		pthread_cond_wait(&s_queue->max_work, &s_queue->mutex);
+	}
+
+	queue_push(s_queue->queue, item);
+
+	struct chunk *c=(struct chunk *)(item);
+	if(CHECK_CHUNK(c,CHUNK_FILE_END)){
+		s_queue->queue->file_num++;
+		
+	}
+	if(s_queue->queue->file_num>0)
+		pthread_cond_broadcast(&s_queue->min_work);
+
+	if (pthread_mutex_unlock(&s_queue->mutex)) {
+		puts("failed to unlock!");
+		return;
+	}
+}
 
 void restore_jpg_file(FILE *fp,struct chunk *c,Queue *sub,int row,int column){
 	int chunklenth=PIC_CHUNK_ROW;

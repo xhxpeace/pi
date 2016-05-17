@@ -7,6 +7,8 @@
 
 #ifndef QUEUE_H_
 #define QUEUE_H_
+#include "../destor.h"
+
 
 typedef struct queue_ele_tag {
 	struct queue_ele_tag *next;

@@ -160,7 +160,7 @@ int mem_read_chunk_jpeg(struct chunk *fc,struct chunk *c,Queue *queue){
 	}
 
 	jpeg_create_decompress(&cinfo);
-	jpeg_stdio_src(&cinfo, fc->data,fc->size);//specify data source
+	jpeg_mem_src(&cinfo, fc->data,fc->size);//specify data source
 	jpeg_read_header(&cinfo, TRUE);//read the information of the jpg file
 	jpeg_start_decompress(&cinfo);
 	

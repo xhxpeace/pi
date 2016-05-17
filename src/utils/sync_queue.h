@@ -5,6 +5,8 @@
 #include <pthread.h>
 #include "queue.h"
 
+
+
 typedef struct {
 	int term; // terminated
 	int max_size;/* the max size of queue */
