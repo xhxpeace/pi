@@ -17,11 +17,11 @@ extern struct {
 
 void do_backup(char *path) {
 
-	init_recipe_store();//读取历史备份版本号信息
-	init_container_store();//打开contianer.pool并读取container_count,或创建contianer.pool
-	init_index();//初始化索引算法
+	init_recipe_store();
+	init_container_store();
+	init_index();
 
-	init_backup_jcr(path);//初始化当前版本号
+	init_backup_jcr(path);
 
 	puts("==== backup begin ====");
 
@@ -31,9 +31,9 @@ void do_backup(char *path) {
 	if (destor.simulation_level == SIMULATION_ALL) {
 		start_read_trace_phase();
 	} else {
-		start_read_phase();//读数据，每次读1MB
-		start_chunk_phase();//数据分块
-		start_hash_phase();//要在这里进行块数据压缩
+		start_read_phase();
+		start_chunk_phase();
+		start_hash_phase();
 	}
 	start_dedup_phase();
 	start_rewrite_phase();

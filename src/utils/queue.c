@@ -75,7 +75,11 @@ void* queue_pop(Queue *queue) {
 }
 
 void sub_queue_push(Queue *queue, Queue *sub) {
-	queue->last->next = sub->first;
+	if(queue->first == NULL){
+		queue->first = sub->first;
+	}else{
+		queue->last->next = sub->first;
+	}
 	queue->last = sub->last;
 	queue->elem_num += sub->elem_num;
 	sub->first = NULL;
@@ -116,7 +120,7 @@ int  sub_queue_pop(Queue *queue,Queue *sub) {
 
     queue->first=p->next;
     if(queue->last == p)
-    	queue->last == NULL;
+    	queue->last = NULL;
     queue->elem_num-=count;
     return 1;
 

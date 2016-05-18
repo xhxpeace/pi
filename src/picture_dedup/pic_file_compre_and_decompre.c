@@ -269,7 +269,7 @@ void pic_chunk(struct chunk *c,struct jpeg_decompress_struct *cinfo,Queue *queue
 	TIMER_END(1, jcr.read_time);
 
 	
-	if(height<PIC_CHUNK_ROW||width<PIC_CHUNK_ROW){
+	if(height<PIC_CHUNK_ROW || width<PIC_CHUNK_ROW){
 		TIMER_BEGIN(1);
 		c=new_chunk(height*width3);
 		copyto(c->data,buf,height,width3,0,0);

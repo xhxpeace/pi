@@ -32,10 +32,11 @@ void sync_subQueue_push(SyncQueue *s_queue,Queue *sub){
 		return;
 	}
 
-	if (s_queue->term == 1) {
+	/*if (s_queue->term == 1) {
 		pthread_mutex_unlock(&s_queue->mutex);
+		printf("end!!!!!!!!!\n");
 		return;
-	}
+	}*/
 
 	while (s_queue->max_size > 0
 			&& queue_size(s_queue->queue) >= s_queue->max_size) {

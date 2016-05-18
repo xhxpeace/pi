@@ -139,7 +139,6 @@ void restore_jpg_file(FILE *fp,struct chunk *c,Queue *sub,int row,int column){
 					outbuf[i]=(unsigned char *)malloc(temp);
 
 				quality=(int)c->data[c->size-2]-80;
-
 				restore_commom_chunk(outbuf,c,head[quality]);
 				
 				int temp1=cborder*3;
@@ -321,6 +320,7 @@ static void *restore_data_thread(void *arg) {
 		FILE *fp = NULL;
 		int row=0;//jpg height
 		int column=0;//jpg width 
+
 		while ((c = queue_pop(sub))) {			
 			/*TIMER_DECLARE(1);
 			TIMER_BEGIN(1);*/

@@ -5,7 +5,7 @@
 static pthread_t hash_t;
 static int64_t chunk_num;
 
-static void echoarray(unsigned char **arr,int r,int c){
+/*static void echoarray(unsigned char **arr,int r,int c){
 	int i,j;
 	for(i=0;i<r;i++){
 		for(j=0;j<c;j++){
@@ -113,18 +113,18 @@ int offset_of_mark0xffda(unsigned char *data,int len){
 	}
 	//printf("hash_phase/offset_of_mark0xffda:m=%d\n",m);
 	return m;
-}
+}*/
 
-static void* sha1_thread(void* arg) {
+/*static void* sha1_thread(void* arg) {
 	char code[41];
 	int quality=90;
 	while (1) {
 		struct chunk* c = sync_queue_pop(chunk_queue);
+
 		if (c == NULL) {
 			sync_queue_term(hash_queue);
 			break;
 		}
-
 		if (CHECK_CHUNK(c, CHUNK_FILE_START) || CHECK_CHUNK(c, CHUNK_FILE_END)) {
 			if(CHECK_CHUNK(c, CHUNK_FILE_START)&&PIC_CHUNK_YES_OR_NO&&c->row!=0) {
 				quality=(int)c->data[c->size-2];
@@ -167,7 +167,6 @@ static void* sha1_thread(void* arg) {
 			c->data[rlen+3]='\0';
 			c->size=rlen+4;
 			free(outbuf);
-			/*free_2_array(inbuf,c->row);	*/
 
 		}		
 		TIMER_DECLARE(1);
@@ -190,6 +189,23 @@ static void* sha1_thread(void* arg) {
 		free(avg);
 	}		
 	return NULL;
+}*/
+
+static void* sha1_thread(void* arg) {
+	while (1) {
+		struct chunk* c = sync_queue_pop(chunk_queue);
+
+		if (c == NULL) {
+			sync_queue_term(hash_queue);
+			break;
+		}
+		
+		if (!CHECK_CHUNK(c, CHUNK_FILE_START) && !CHECK_CHUNK(c, CHUNK_FILE_END)) {			
+			jcr.chunk_num++;
+			chunk_num++;
+		}
+		sync_queue_push(hash_queue, c);	
+	}
 }
 
 void start_hash_phase() {
