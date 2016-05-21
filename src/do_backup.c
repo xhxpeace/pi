@@ -13,15 +13,15 @@ extern struct {
 	int lookup_requests_for_unique;
 	/* Overheads of prefetching module */
 	int read_prefetching_units;
-}index_overhead;
+} index_overhead;
 
 void do_backup(char *path) {
 
-	init_recipe_store();
-	init_container_store();
-	init_index();
+	init_recipe_store();//读取历史备份版本号信息
+	init_container_store();//打开contianer.pool并读取container_count,或创建contianer.pool
+	init_index();//初始化索引算法
 
-	init_backup_jcr(path);
+	init_backup_jcr(path);//初始化当前版本号
 
 	puts("==== backup begin ====");
 
@@ -31,9 +31,9 @@ void do_backup(char *path) {
 	if (destor.simulation_level == SIMULATION_ALL) {
 		start_read_trace_phase();
 	} else {
-		start_read_phase();
-		start_chunk_phase();
-		start_hash_phase();
+		start_read_phase();//读数据，每次读1MB
+		start_chunk_phase();//数据分块
+		start_hash_phase();//要在这里进行块数据压缩
 	}
 	start_dedup_phase();
 	start_rewrite_phase();
@@ -66,29 +66,29 @@ void do_backup(char *path) {
 	printf("backup path: %s\n", jcr.path);
 	printf("number of files: %d\n", jcr.file_num);
 	printf("number of chunks: %d (%lld bytes on average)\n", jcr.chunk_num,
-			jcr.data_size / jcr.chunk_num);
+	       jcr.data_size / jcr.chunk_num);
 	printf("number of unique chunks: %d\n", jcr.unique_chunk_num);
 	printf("total size(B): %lld\n", jcr.data_size);
 	printf("stored data size(B): %lld\n",
-			jcr.unique_data_size + jcr.rewritten_chunk_size);
+	       jcr.unique_data_size + jcr.rewritten_chunk_size);
 	printf("deduplication ratio: %.4f, %.4f\n",
-			jcr.data_size != 0 ?
-					(jcr.data_size - jcr.unique_data_size
-							- jcr.rewritten_chunk_size)
-							/ (double) (jcr.data_size) :
-					0,
-			jcr.data_size
-					/ (double) (jcr.unique_data_size + jcr.rewritten_chunk_size));
-	printf("f-ratio:%.4f\n",(jcr.data_size-jcr.unique_data_size-28* jcr.unique_chunk_num)/(double)(jcr.data_size));
+	       jcr.data_size != 0 ?
+	       (jcr.data_size - jcr.unique_data_size
+	        - jcr.rewritten_chunk_size)
+	       / (double) (jcr.data_size) :
+	       0,
+	       jcr.data_size
+	       / (double) (jcr.unique_data_size + jcr.rewritten_chunk_size));
+	printf("f-ratio:%.4f\n", (jcr.data_size - jcr.unique_data_size - 28 * jcr.unique_chunk_num) / (double)(jcr.data_size));
 	printf("total time(s): %.3f\n", jcr.total_time / 1000000);
 	printf("throughput(MB/s): %.2f\n",
-			(double) jcr.data_size * 1000000 / (1024 * 1024 * jcr.total_time));
+	       (double) jcr.data_size * 1000000 / (1024 * 1024 * jcr.total_time));
 	printf("number of zero chunks: %d\n", jcr.zero_chunk_num);
 	printf("size of zero chunks: %lld\n", jcr.zero_chunk_size);
 	printf("number of rewritten chunks: %d\n", jcr.rewritten_chunk_num);
 	printf("size of rewritten chunks: %lld\n", jcr.rewritten_chunk_size);
 	printf("rewritten rate in size: %.3f\n",
-			jcr.rewritten_chunk_size / (double) jcr.data_size);
+	       jcr.rewritten_chunk_size / (double) jcr.data_size);
 
 	destor.data_size += jcr.data_size;
 	destor.stored_data_size += jcr.unique_data_size + jcr.rewritten_chunk_size;
@@ -101,28 +101,28 @@ void do_backup(char *path) {
 	destor.rewritten_chunk_size += jcr.rewritten_chunk_size;
 
 	printf("read_time : %.3fs, %.2fMB/s\n", jcr.read_time / 1000000,
-			jcr.data_size * 1000000 / jcr.read_time / 1024 / 1024);
-	printf("decompre_time : %.3fs, %.2fMB/s\n", jcr.decompre_time/ 1000000,
-			jcr.data_size * 1000000 / jcr.decompre_time/ 1024 / 1024);
+	       jcr.data_size * 1000000 / jcr.read_time / 1024 / 1024);
+	printf("decompre_time : %.3fs, %.2fMB/s\n", jcr.decompre_time / 1000000,
+	       jcr.data_size * 1000000 / jcr.decompre_time / 1024 / 1024);
 	printf("chunk_time : %.3fs, %.2fMB/s\n", jcr.chunk_time / 1000000,
-			jcr.data_size * 1000000 / jcr.chunk_time / 1024 / 1024);
+	       jcr.data_size * 1000000 / jcr.chunk_time / 1024 / 1024);
 	printf("hash_time : %.3fs, %.2fMB/s\n", jcr.hash_time / 1000000,
-			jcr.data_size * 1000000 / jcr.hash_time / 1024 / 1024);
-	printf("compre_time : %.3fs, %.2fMB/s\n", jcr.compre_time/ 1000000,
-			jcr.data_size * 1000000 / jcr.compre_time/ 1024 / 1024);
+	       jcr.data_size * 1000000 / jcr.hash_time / 1024 / 1024);
+	printf("compre_time : %.3fs, %.2fMB/s\n", jcr.compre_time / 1000000,
+	       jcr.data_size * 1000000 / jcr.compre_time / 1024 / 1024);
 	printf("dedup_time : %.3fs, %.2fMB/s\n",
-			jcr.dedup_time / 1000000,
-			jcr.data_size * 1000000 / jcr.dedup_time / 1024 / 1024);
+	       jcr.dedup_time / 1000000,
+	       jcr.data_size * 1000000 / jcr.dedup_time / 1024 / 1024);
 
 	printf("rewrite_time : %.3fs, %.2fMB/s\n", jcr.rewrite_time / 1000000,
-			jcr.data_size * 1000000 / jcr.rewrite_time / 1024 / 1024);
+	       jcr.data_size * 1000000 / jcr.rewrite_time / 1024 / 1024);
 
 	printf("filter_time : %.3fs, %.2fMB/s\n",
-			jcr.filter_time / 1000000,
-			jcr.data_size * 1000000 / jcr.filter_time / 1024 / 1024);
+	       jcr.filter_time / 1000000,
+	       jcr.data_size * 1000000 / jcr.filter_time / 1024 / 1024);
 
 	printf("write_time : %.3fs, %.2fMB/s\n", jcr.write_time / 1000000,
-			jcr.data_size * 1000000 / jcr.write_time / 1024 / 1024);
+	       jcr.data_size * 1000000 / jcr.write_time / 1024 / 1024);
 
 	//double seek_time = 0.005; //5ms
 	//double bandwidth = 120 * 1024 * 1024; //120MB/s
@@ -161,21 +161,21 @@ void do_backup(char *path) {
 	 * throughput,
 	 */
 	fprintf(fp, "%d %lld %lld %.4f %.4f %d %d %d %d %d %d %d %.2f\n",
-			jcr.id,
-			jcr.data_size,
-			destor.stored_data_size,
-			jcr.data_size != 0 ?
-					(jcr.data_size - jcr.rewritten_chunk_size - jcr.unique_data_size)/(double) (jcr.data_size)
-					: 0,
-			jcr.data_size != 0 ? (double) (jcr.rewritten_chunk_size) / (double) (jcr.data_size) : 0,
-			jcr.total_container_num,
-			jcr.sparse_container_num,
-			jcr.inherited_sparse_num,
-			index_overhead.lookup_requests,
-			index_overhead.lookup_requests_for_unique,
-			index_overhead.update_requests,
-			index_overhead.read_prefetching_units,
-			(double) jcr.data_size * 1000000 / (1024 * 1024 * jcr.total_time));
+	        jcr.id,
+	        jcr.data_size,
+	        destor.stored_data_size,
+	        jcr.data_size != 0 ?
+	        (jcr.data_size - jcr.rewritten_chunk_size - jcr.unique_data_size) / (double) (jcr.data_size)
+	        : 0,
+	        jcr.data_size != 0 ? (double) (jcr.rewritten_chunk_size) / (double) (jcr.data_size) : 0,
+	        jcr.total_container_num,
+	        jcr.sparse_container_num,
+	        jcr.inherited_sparse_num,
+	        index_overhead.lookup_requests,
+	        index_overhead.lookup_requests_for_unique,
+	        index_overhead.update_requests,
+	        index_overhead.read_prefetching_units,
+	        (double) jcr.data_size * 1000000 / (1024 * 1024 * jcr.total_time));
 
 	fclose(fp);
 

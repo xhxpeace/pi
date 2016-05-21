@@ -8,8 +8,8 @@ SyncQueue* sync_queue_new(int size) {
 	s_queue->term = 0;
 
 	if (pthread_mutex_init(&s_queue->mutex, 0)
-			|| pthread_cond_init(&s_queue->max_work, 0)
-			|| pthread_cond_init(&s_queue->min_work, 0)) {
+	        || pthread_cond_init(&s_queue->max_work, 0)
+	        || pthread_cond_init(&s_queue->min_work, 0)) {
 		puts("Failed to init mutex or work in SyncQueue!");
 		return NULL;
 	}
@@ -26,7 +26,7 @@ void sync_queue_free(SyncQueue* s_queue, void (*free_data)(void*)) {
 
 
 
-void sync_subQueue_push(SyncQueue *s_queue,Queue *sub){
+void sync_subQueue_push(SyncQueue *s_queue, Queue *sub) {
 	if (pthread_mutex_lock(&s_queue->mutex) != 0) {
 		puts("failed to lock!");
 		return;
@@ -39,7 +39,7 @@ void sync_subQueue_push(SyncQueue *s_queue,Queue *sub){
 	}*/
 
 	while (s_queue->max_size > 0
-			&& queue_size(s_queue->queue) >= s_queue->max_size) {
+	        && queue_size(s_queue->queue) >= s_queue->max_size) {
 		pthread_cond_wait(&s_queue->max_work, &s_queue->mutex);
 	}
 
@@ -54,7 +54,7 @@ void sync_subQueue_push(SyncQueue *s_queue,Queue *sub){
 }
 
 //pop a sub queue
-int sync_subQueue_pop(SyncQueue* s_queue,Queue *sub) {
+int sync_subQueue_pop(SyncQueue* s_queue, Queue *sub) {
 	if (pthread_mutex_lock(&s_queue->mutex) != 0) {
 		puts("failed to lock!");
 		return 0;
@@ -66,7 +66,7 @@ int sync_subQueue_pop(SyncQueue* s_queue,Queue *sub) {
 		}
 		pthread_cond_wait(&s_queue->min_work, &s_queue->mutex);
 	}
-	if(!sub_queue_pop(s_queue->queue,sub))
+	if (!sub_queue_pop(s_queue->queue, sub))
 		return 0;
 	s_queue->queue->file_num--;
 	pthread_cond_broadcast(&s_queue->max_work);
@@ -87,7 +87,7 @@ void sync_queue_push(SyncQueue* s_queue, void* item) {
 	}
 
 	while (s_queue->max_size > 0
-			&& queue_size(s_queue->queue) >= s_queue->max_size) {
+	        && queue_size(s_queue->queue) >= s_queue->max_size) {
 		pthread_cond_wait(&s_queue->max_work, &s_queue->mutex);
 	}
 
@@ -146,7 +146,7 @@ void sync_queue_term(SyncQueue* s_queue) {
  * Iterate the Queue to find an elem which meets the condition ('hit' returns 1).
  */
 void* sync_queue_find(SyncQueue* s_queue, int (*hit)(void*, void*), void* data,
-		void* (*dup)(void*)) {
+                      void* (*dup)(void*)) {
 	void* ret = NULL;
 
 	if (pthread_mutex_lock(&s_queue->mutex) != 0) {

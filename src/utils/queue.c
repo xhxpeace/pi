@@ -75,9 +75,9 @@ void* queue_pop(Queue *queue) {
 }
 
 void sub_queue_push(Queue *queue, Queue *sub) {
-	if(queue->first == NULL){
+	if (queue->first == NULL) {
 		queue->first = sub->first;
-	}else{
+	} else {
 		queue->last->next = sub->first;
 	}
 	queue->last = sub->last;
@@ -88,41 +88,41 @@ void sub_queue_push(Queue *queue, Queue *sub) {
 }
 
 //pop a sub queue
-int  sub_queue_pop(Queue *queue,Queue *sub) {
-	if(queue->elem_num == 0){
+int  sub_queue_pop(Queue *queue, Queue *sub) {
+	if (queue->elem_num == 0) {
 		return 0;
 	}
 	queue_ele_t *first = queue->first;
 	struct chunk *c = (struct chunk *)(first->data);
-	if(!CHECK_CHUNK(c,CHUNK_FILE_START)){
+	if (!CHECK_CHUNK(c, CHUNK_FILE_START)) {
 		printf("Lost file start\n");
 		exit(-1);
 	}
 
-	int count=1;
-	queue_ele_t *p=first->next;
-     while(1){
-    		if(p==NULL){
-	    		printf("Lost file end\n");
-	    		exit(-1);
-	    	}
-	    	count++;
-    		c = (struct chunk *)(p->data);
-    		if(CHECK_CHUNK(c,CHUNK_FILE_END)){
-	    		break;
-	    	}
-	        	
-	    	p=p->next;
-    }
-    sub->first=first;
-    sub->last=p;
-    sub->elem_num=count;
+	int count = 1;
+	queue_ele_t *p = first->next;
+	while (1) {
+		if (p == NULL) {
+			printf("Lost file end\n");
+			exit(-1);
+		}
+		count++;
+		c = (struct chunk *)(p->data);
+		if (CHECK_CHUNK(c, CHUNK_FILE_END)) {
+			break;
+		}
 
-    queue->first=p->next;
-    if(queue->last == p)
-    	queue->last = NULL;
-    queue->elem_num-=count;
-    return 1;
+		p = p->next;
+	}
+	sub->first = first;
+	sub->last = p;
+	sub->elem_num = count;
+
+	queue->first = p->next;
+	if (queue->last == p)
+		queue->last = NULL;
+	queue->elem_num -= count;
+	return 1;
 
 }
 
@@ -137,7 +137,7 @@ int queue_size(Queue *queue) {
 }
 
 void queue_foreach(Queue *queue, void (*func)(void *data, void *user_data),
-		void *user_data) {
+                   void *user_data) {
 	queue_ele_t *item = 0;
 	if (queue->elem_num == 0)
 		return;
