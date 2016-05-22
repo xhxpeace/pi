@@ -3,7 +3,7 @@
 #include "utils/rabin_chunking.h"
 #include "backup.h"
 
-#define CHUNK_THREAD_NUM 8
+#define CHUNK_THREAD_NUM 2
 static pthread_t chunk_t[CHUNK_THREAD_NUM];
 static int64_t chunk_num;
 
