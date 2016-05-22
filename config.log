@@ -27,6 +27,7 @@ uname -v = #1 SMP Wed Dec 9 14:09:15 UTC 2015
 /usr/bin/oslevel       = unknown
 /bin/universe          = unknown
 
+PATH: /usr/local/app/git/bin
 PATH: /usr/local/bin
 PATH: /usr/local/sbin
 PATH: /usr/bin
@@ -131,8 +132,8 @@ configure:3884: $? = 0
 configure:3893: result: yes
 configure:3904: checking for g_thread_init in -lglib
 configure:3929: gcc -o conftest -g -O2 -Wall   conftest.c -lglib  -lpthread  >&5
-/tmp/cc42ySZT.o: In function `main':
-/picdedup/destor-master-old/conftest.c:23: undefined reference to `g_thread_init'
+/tmp/cc24Zf1p.o: In function `main':
+/picdedup/destor-master1/conftest.c:23: undefined reference to `g_thread_init'
 collect2: error: ld returned 1 exit status
 configure:3929: $? = 1
 configure: failed program was:
@@ -892,7 +893,7 @@ host_alias=''
 htmldir='${docdir}'
 includedir='${prefix}/include'
 infodir='${datarootdir}/info'
-install_sh='${SHELL} /picdedup/destor-master-old/install-sh'
+install_sh='${SHELL} /picdedup/destor-master1/install-sh'
 libdir='${exec_prefix}/lib'
 libexecdir='${exec_prefix}/libexec'
 localedir='${datarootdir}/locale'
