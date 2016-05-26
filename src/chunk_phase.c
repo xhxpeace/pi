@@ -122,16 +122,16 @@ static void set_hash(Queue *queue){
 
 	p=p->next;
 	unsigned char *avg=(unsigned char *)malloc(HASH_SIZE*sizeof(unsigned char));
-	//memset(avg,0,HASH_SIZE); 
+	memset(avg,0,HASH_SIZE); 
 
 	while(p != queue->last){
 		c = (struct chunk *)(p->data);
 		if(flag){
 			unsigned char *outbuf=NULL;
-			/*TIMER_DECLARE(1);
-			TIMER_BEGIN(1);*/
+			TIMER_DECLARE(1);
+			TIMER_BEGIN(1);
 			int len=write_to_mem(&outbuf,c->data,quality,c->column,c->row);
-			//TIMER_END(1,jcr.compre_time);
+			TIMER_END(1,jcr.compre_time);//unsafe in multi thread
 			if(c->row==PIC_CHUNK_ROW && c->column==PIC_CHUNK_ROW){
 				unsigned char *gray=(unsigned char *)malloc(c->row*c->column*sizeof(unsigned char));
 				get_gray(gray,c);				
@@ -154,8 +154,7 @@ static void set_hash(Queue *queue){
 			free(outbuf);
 		}
 
-		/*TIMER_DECLARE(1);
-		TIMER_BEGIN(1);*/
+
 		SHA_CTX ctx;
 		SHA_Init(&ctx);	
 
@@ -163,11 +162,8 @@ static void set_hash(Queue *queue){
 			SHA_Update(&ctx, avg, HASH_SIZE);
 		}
 		else SHA_Update(&ctx, c->data, c->size);
-		SHA_Final(c->fp, &ctx);
-		//TIMER_END(1, jcr.hash_time);
-		
+		SHA_Final(c->fp, &ctx);		
 		hash2code(c->fp, code);
-
 		p=p->next;	
 
 	}//end while(p != queue->last)
@@ -189,8 +185,11 @@ static void* chunk_thread(void *arg) {
 	Queue *chunk_sub = queue_new();
 	int is_end = 1;
 	int quality = 90;
+	double chunk_time=0;
+	double hash_time=0;
+	TIMER_DECLARE(1);	
 	while (1) {
-
+		TIMER_BEGIN(1);
 		is_end = sync_subQueue_pop(read_queue,read_sub);
 
 		if (is_end == 0) {
@@ -245,8 +244,6 @@ static void* chunk_thread(void *arg) {
 					break;
 				}
 
-				TIMER_DECLARE(1);
-				TIMER_BEGIN(1);
 
 				int chunk_size = 0;
 				if (destor.chunk_algorithm == CHUNK_RABIN
@@ -255,8 +252,6 @@ static void* chunk_thread(void *arg) {
 				else
 					chunk_size = destor.chunk_avg_size > leftlen ?
 									leftlen : destor.chunk_avg_size;
-
-				TIMER_END(1, jcr.chunk_time);
 
 				struct chunk *nc = new_chunk(chunk_size);
 				memcpy(nc->data, leftbuf + leftoff, chunk_size);
@@ -279,10 +274,13 @@ static void* chunk_thread(void *arg) {
 		}
 
 		queue_push(chunk_sub, c);//FILE_END
-
+		TIMER_END(1, chunk_time);
 		windows_reset();
 		c = NULL;
+
+		TIMER_BEGIN(1);
 		set_hash(chunk_sub);
+		TIMER_END(1,hash_time);
 		sync_subQueue_push(chunk_queue,chunk_sub);	
 	}
 
@@ -291,6 +289,8 @@ static void* chunk_thread(void *arg) {
 	free(leftbuf);
 	free(zeros);
 	free(data);
+	jcr.chunk_time+=chunk_time;//it's unsafe in multi thread
+	jcr.hash_time+=hash_time;
 	//free(filename);
 	return NULL;
 }

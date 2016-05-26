@@ -68,6 +68,8 @@ void do_backup(char *path) {
 	printf("number of chunks: %d (%lld bytes on average)\n", jcr.chunk_num,
 	       jcr.data_size / jcr.chunk_num);
 	printf("number of unique chunks: %d\n", jcr.unique_chunk_num);
+	printf("number of duplicate chunks: %d\n", jcr.chunk_num-jcr.unique_chunk_num);
+	printf("dedup ratio by chunk num:%.4f\n",(jcr.chunk_num-jcr.unique_chunk_num)*1.0/jcr.chunk_num);
 	printf("total size(B): %lld\n", jcr.data_size);
 	printf("stored data size(B): %lld\n",
 	       jcr.unique_data_size + jcr.rewritten_chunk_size);

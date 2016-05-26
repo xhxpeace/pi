@@ -62,10 +62,6 @@ static void read_file(sds path) {
 		sync_queue_push(read_queue, c);//file data
 
 		TIMER_END(1, jcr.read_time);
-		/*if(read_jpeg_file(fp,c)<0){
-			free_chunk(c);
-			return ;
-		}*/
 	}
 	else {
 		sync_queue_push(read_queue, c);

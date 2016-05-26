@@ -266,11 +266,10 @@ void pic_chunk(struct chunk *c, struct jpeg_decompress_struct *cinfo, Queue *que
 	TIMER_DECLARE(1);
 	TIMER_BEGIN(1);
 	read_bmp(buf, cinfo);
-	TIMER_END(1, jcr.read_time);
+	TIMER_END(1, jcr.decompre_time);
 
 
 	if (height < PIC_CHUNK_ROW || width < PIC_CHUNK_ROW) {
-		TIMER_BEGIN(1);
 		c = new_chunk(height * width3);
 		copyto(c->data, buf, height, width3, 0, 0);
 
@@ -278,7 +277,6 @@ void pic_chunk(struct chunk *c, struct jpeg_decompress_struct *cinfo, Queue *que
 		c->column = width;
 		queue_push(queue, c);
 		c = NULL;
-		TIMER_END(1, jcr.chunk_time);
 	} else {
 		int clen = PIC_CHUNK_ROW; //chunk length
 		int clen3 = clen * 3;
@@ -290,7 +288,6 @@ void pic_chunk(struct chunk *c, struct jpeg_decompress_struct *cinfo, Queue *que
 		int h_split = height - h_left;
 		int w_split3 = (width - w_left) * 3;
 
-		TIMER_BEGIN(1);
 		//complete chunk
 		int h_offset = 0;
 		int w_offset;
@@ -330,7 +327,6 @@ void pic_chunk(struct chunk *c, struct jpeg_decompress_struct *cinfo, Queue *que
 			c = NULL;
 		}
 
-		TIMER_END(1, jcr.chunk_time);
 	}
 	free_2_array(buf, height);
 }
